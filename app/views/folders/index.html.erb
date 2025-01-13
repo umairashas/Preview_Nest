@@ -1,0 +1,12 @@
+<div class="container" style="max-width: 600px; margin-top: 20px;">
+  <h3 class="mb-4 text-center">Folders</h3>
+  <ul class="list-group">
+    <% @folders.each do |folder| %>
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <%= link_to folder.name, folder_path(folder), remote: true, class: "folder-link" %>
+        <span class="badge bg-primary rounded-pill">Go</span>
+      </li>
+    <% end %>
+  </ul>
+</div>
+

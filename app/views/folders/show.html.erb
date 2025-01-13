@@ -1,0 +1,93 @@
+<div class="container-fluid" style="display: flex; height: 100vh; flex-direction: row;">
+  <div class="col-md-4" style="border-right: 1px solid #ddd; padding: 10px;">
+    <%= link_to "Upload a File", new_folder_document_path(@folder), class: "btn btn-primary mb-3" %>
+
+    <!-- Left side: Documents list -->
+    <h3 class="mb-4 text-center">Documents in <%= @folder.name %></h3>
+
+    <!-- Conditionally render Select All button only if there are documents -->
+    <% if @folder.documents.any? %>
+      <div class="mb-3">
+        <label>
+          <input type="checkbox" id="select-all"> Select All
+        </label>
+        <button id="combine-documents-button" class="btn btn-success" style="width: 100px;">Combine</button>
+      </div>
+    <% end %>
+
+    <ul id="documents-list" class="list-group">
+      <% @folder.documents.each do |document| %>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <label>
+            <input type="checkbox" 
+                   class="document-checkbox" 
+                   value="<%= document.id %>" 
+                   data-show-url="<%= folder_document_path(@folder, document) %>"
+                   class="me-2">
+          </label>
+          <%= link_to document.name, folder_document_path(@folder, document), remote: true, class: "file-link" %>
+          <%= button_to 'Delete', folder_document_path(@folder, document), method: :delete, data: { turbo_confirm: 'Are you sure you want to delete this document?' }, class: 'btn btn-danger btn-sm' %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+
+  <!-- Right side: PDF preview -->
+  <div class="col-md-8" style="padding: 10px;" id="preview">
+    <h3>PDF Preview</h3>
+    <p>Select a document to preview it here.</p>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const selectAllCheckbox = document.getElementById('select-all');
+  const documentCheckboxes = document.querySelectorAll('.document-checkbox');
+  const combineButton = document.getElementById('combine-documents-button');
+  const previewContainer = document.getElementById('preview');
+
+  // When "Select All" is checked/unchecked, toggle all checkboxes
+  selectAllCheckbox.addEventListener('change', function () {
+    documentCheckboxes.forEach(checkbox => {
+      checkbox.checked = selectAllCheckbox.checked;
+    });
+  });
+
+  // Ensure "Select All" checkbox reflects the state of individual checkboxes
+  documentCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function () {
+      const allChecked = Array.from(documentCheckboxes).every(checkbox => checkbox.checked);
+      selectAllCheckbox.checked = allChecked;
+      selectAllCheckbox.indeterminate = !allChecked && Array.from(documentCheckboxes).some(checkbox => checkbox.checked);
+    });
+  });
+
+  // Attach event listener to the combine button
+  combineButton.addEventListener('click', function () {
+    const selectedIds = Array.from(documentCheckboxes)
+      .filter(checkbox => checkbox.checked)
+      .map(checkbox => checkbox.value);
+
+    if (selectedIds.length > 0) {
+      // Send selected document IDs to the server
+      fetch('<%= combine_documents_folder_path(@folder) %>', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector("meta[name='csrf-token']").content
+        },
+        body: JSON.stringify({ document_ids: selectedIds })
+      })
+      .then(response => response.blob())
+      .then(blob => {
+        // Display the combined PDF in the preview section
+        const url = URL.createObjectURL(blob);
+        previewContainer.innerHTML = `<embed src="${url}" type="application/pdf" width="100%" height="600px" />`;
+      })
+      .catch(error => console.error('Error combining PDFs:', error));
+    } else {
+      alert('Please select at least one document.');
+    }
+  });
+});
+</script>

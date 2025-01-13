@@ -1,0 +1,24 @@
+<h3>Upload a File to <%= @folder.name %></h3>
+
+<%= form_with(model: [@folder, @document], local: false) do |form| %>
+  <div class="field">
+    <%= form.label :name %>
+    <%= form.text_field :name %>
+  </div>
+
+  <div class="field">
+    <%= form.label :pdf_document %>
+    <%= form.file_field :pdf_document %>
+  </div>
+
+  <div class="actions">
+    <%= form.submit 'Upload Document' %>
+    
+  </div>
+
+
+<% end %>
+
+
+
+
