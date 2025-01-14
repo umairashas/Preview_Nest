@@ -57,3 +57,4 @@ group :test do
 end
 gem 'pg'
 gem 'combine_pdf'
+gem 'rubyzip', '~> 2.4'
