@@ -1,15 +1,16 @@
 class Document < ApplicationRecord
   belongs_to :folder
   has_one_attached :pdf_document
-  validate :pdf_document_is_pdf
   validates :name, presence: true
+  validate :validate_file_type
 
   private
 
-  def pdf_document_is_pdf
-  if pdf_document.attached? && pdf_document.content_type != 'application/pdf'
-    errors.add(:pdf_document, 'must be a PDF file')
-    Rails.logger.debug "Validation error: #{errors.full_messages}"
+  def validate_file_type
+    if pdf_document.attached?
+      unless %w[text/plain text/html].include?(pdf_document.content_type)
+        errors.add(:pdf_document, 'must be a .txt or .html file')
+      end
+    end
   end
-end
 end

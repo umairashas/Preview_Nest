@@ -12,6 +12,14 @@
           
         </label>
         <button id="combine-documents-button" class="btn btn-success" style="width: 100px;">Combine</button>
+        <%= button_to "Download Combined PDF",
+    combine_documents_folder_path(@folder, format: :pdf),
+    params: { document_ids: @folder.documents.pluck(:id) },
+    method: :post,
+    class: "btn btn-primary" %>
+
+
+
       </div>
     <% end %>
 
@@ -33,21 +41,46 @@
     <h3>PDF Preview</h3>
     <p>Select a document to preview it here.</p>
   </div>
+
 </div>
-
+ 
 <script>
+  document.addEventListener('DOMContentLoaded', function () {
+  const combineButton = document.getElementById('combine-documents-button');
+  const previewContainer = document.getElementById('preview');
+  const documentsList = document.getElementById('documents-list');
 
+  const selectAllCheckbox = document.createElement('input');
+  selectAllCheckbox.type = 'checkbox';
+  selectAllCheckbox.id = 'select-all-checkbox';
 
-  
+  const selectAllLabel = document.createElement('label');
+  selectAllLabel.textContent = 'Select All';
+  selectAllLabel.prepend(selectAllCheckbox);
 
-  // Attach event listener to the combine button
+  documentsList.parentNode.insertBefore(selectAllLabel, documentsList);
+
+  const documentCheckboxes = Array.from(documentsList.querySelectorAll('.list-group-item')).map(item => {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = item.querySelector('.file-link').getAttribute('href').split('/').pop(); // Use document ID
+    checkbox.style.marginRight = '10px';
+    item.insertBefore(checkbox, item.firstChild);
+    return checkbox;
+  });
+
+  selectAllCheckbox.addEventListener('change', function () {
+    documentCheckboxes.forEach(checkbox => {
+      checkbox.checked = selectAllCheckbox.checked;
+    });
+  });
+
   combineButton.addEventListener('click', function () {
-    const selectedIds = Array.from(documentCheckboxes)
+    const selectedIds = documentCheckboxes
       .filter(checkbox => checkbox.checked)
       .map(checkbox => checkbox.value);
 
     if (selectedIds.length > 0) {
-      // Send selected document IDs to the server
       fetch('<%= combine_documents_folder_path(@folder) %>', {
         method: 'POST',
         headers: {
@@ -56,16 +89,20 @@
         },
         body: JSON.stringify({ document_ids: selectedIds })
       })
-      .then(response => response.blob())
-      .then(blob => {
-        // Display the combined PDF in the preview section
-        const url = URL.createObjectURL(blob);
-        previewContainer.innerHTML = `<embed src="${url}" type="application/pdf" width="100%" height="600px" />`;
-      })
-      .catch(error => console.error('Error combining PDFs:', error));
+        .then(response => response.text()) // Expect plain text as the response
+        .then(content => {
+          // Display the combined plain text in the preview section
+          previewContainer.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${content}</pre>`;
+        })
+        .catch(error => {
+          console.error('Error combining documents:', error);
+          alert('An error occurred while combining the documents.');
+        });
     } else {
       alert('Please select at least one document.');
     }
   });
 });
+
 </script>
+

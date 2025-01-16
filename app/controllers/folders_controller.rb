@@ -1,8 +1,9 @@
 require 'combine_pdf'
+require 'nokogiri'
 
 class FoldersController < ApplicationController
-  before_action :set_folder, only: [:show]
-  
+  before_action :set_folder, only: [:show, :combine_documents]
+
   def index
     @folders = Folder.all
   end
@@ -11,38 +12,50 @@ class FoldersController < ApplicationController
     @documents = @folder.documents
   end
 
-  def destroy
-    @document = @folder.documents.find(params[:id]) # Find the document by its ID
-    if @document.destroy
-      redirect_to folder_path(@folder), notice: "Document successfully deleted."
-    else
-      redirect_to folder_path(@folder), alert: "Failed to delete document."
-    end
-  end
-
   def combine_documents
-  document_ids = params[:document_ids] # IDs of selected documents
-  pdf = CombinePDF.new
+    document_ids = params[:document_ids]
+    pdf = CombinePDF.new
 
-  # Loop through selected documents and add them to the combined PDF
-  document_ids.each do |id|
-    document = Document.find(id)
-    if document.pdf_document.attached? && document.pdf_document.content_type == 'application/pdf'
-      pdf << CombinePDF.parse(document.pdf_document.download)
+    document_ids.each do |id|
+      begin
+        document = Document.find(id)
+        
+        if document.pdf_document.attached?
+          case document.pdf_document.content_type
+          when 'text/plain'
+            text = document.pdf_document.download
+            pdf << text_to_pdf(text)
+          when 'text/html'
+            html_content = document.pdf_document.download
+            plain_text = Nokogiri::HTML(html_content).at('body')&.text || ''
+            pdf << text_to_pdf(plain_text.strip)
+          else
+            Rails.logger.warn "Unsupported content type: #{document.pdf_document.content_type}"
+          end
+        else
+          Rails.logger.warn "Document with ID #{id} has no attached file."
+        end
+      rescue ActiveRecord::RecordNotFound => e
+        Rails.logger.error "Document with ID #{id} not found: #{e.message}"
+      rescue StandardError => e
+        Rails.logger.error "Error processing document with ID #{id}: #{e.message}"
+      end
     end
+
+    send_data pdf.to_pdf, filename: "combined_documents.pdf", type: "application/pdf", disposition: "attachment"
   end
-
-  # Send the combined PDF as a response
-  send_data pdf.to_pdf,
-            filename: "combined_documents.pdf",
-            type: "application/pdf",
-            disposition: "inline"
-end
-
 
   private
 
   def set_folder
     @folder = Folder.find(params[:id])
+  end
+
+  def text_to_pdf(text)
+    pdf = CombinePDF.new
+    temp_pdf = Prawn::Document.new
+    temp_pdf.text text
+    pdf << CombinePDF.parse(temp_pdf.render)
+    pdf
   end
 end

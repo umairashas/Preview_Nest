@@ -58,3 +58,8 @@ end
 gem 'pg'
 gem 'combine_pdf'
 gem 'rubyzip', '~> 2.4'
+gem 'nokogiri'
+gem 'sanitize'
+gem 'wicked_pdf'
+gem 'wkhtmltopdf-binary'
+gem 'prawn'
