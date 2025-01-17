@@ -12,11 +12,11 @@
           
         </label>
         <button id="combine-documents-button" class="btn btn-success" style="width: 100px;">Combine</button>
-        <%= button_to "Download Combined PDF",
+       <%#  <%= button_to "Download Combined PDF",
     combine_documents_folder_path(@folder, format: :pdf),
     params: { document_ids: @folder.documents.pluck(:id) },
     method: :post,
-    class: "btn btn-primary" %>
+    class: "btn btn-primary" %> 
 
 
 
@@ -46,6 +46,8 @@
  
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+  console.log('DOM fully loaded and parsed');
+
   const combineButton = document.getElementById('combine-documents-button');
   const previewContainer = document.getElementById('preview');
   const documentsList = document.getElementById('documents-list');
@@ -87,17 +89,21 @@
           'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector("meta[name='csrf-token']").content
         },
-        body: JSON.stringify({ document_ids: selectedIds })
+        body: JSON.stringify({ document_ids: selectedIds, preview: "true" }) // Request preview
       })
-        .then(response => response.text()) // Expect plain text as the response
-        .then(content => {
-          // Display the combined plain text in the preview section
-          previewContainer.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${content}</pre>`;
-        })
-        .catch(error => {
-          console.error('Error combining documents:', error);
-          alert('An error occurred while combining the documents.');
-        });
+      .then(response => response.json()) // Expect a JSON response
+      .then(data => {
+        if (data.preview_text) {
+          // Display the plain text preview
+          previewContainer.innerHTML = `<pre>${data.preview_text}</pre>`;
+        } else {
+          previewContainer.innerHTML = '<p>No preview available.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error combining documents:', error);
+        alert('An error occurred while combining the documents.');
+      });
     } else {
       alert('Please select at least one document.');
     }

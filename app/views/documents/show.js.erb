@@ -1,8 +1,0 @@
-document.getElementById('preview').innerHTML = `<%= j render partial: 'preview', locals: { document: @document } %>`;
-<% if @document %>
-  const previewDiv = document.createElement('div');
-  previewDiv.className = 'file-preview';
-  previewDiv.dataset.fileId = "<%= @document.id %>";
-  previewDiv.innerHTML = `<%= j render partial: 'preview', locals: { document: @document } %>`;
-  document.getElementById('preview').appendChild(previewDiv);
-<% end %>

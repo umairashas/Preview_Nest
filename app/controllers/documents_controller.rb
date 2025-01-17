@@ -8,22 +8,7 @@ class DocumentsController < ApplicationController
     end
   end
 
-  def show
-  @document = Document.find(params[:id])
   
-  if @document.pdf_document.attached?
-    if @document.pdf_document.content_type == "application/pdf"
-      send_data @document.pdf_document.download, 
-                filename: @document.pdf_document.filename.to_s, 
-                type: "application/pdf", 
-                disposition: "inline"
-    else
-      render partial: "documents/preview", locals: { document: @document }
-    end
-  else
-    render plain: "No file attached", status: :not_found
-  end
-end
 
 
   def new
