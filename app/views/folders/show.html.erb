@@ -11,12 +11,14 @@
         <label>
           
         </label>
-        <button id="combine-documents-button" class="btn btn-success" style="width: 100px;">Combine</button>
-       <%#  <%= button_to "Download Combined PDF",
+        <div class="mb-3">
+  <button id="combine-documents-button" class="btn btn-success" data-turbo="false">Preview Combined Documents</button>
+  <%= button_to "Download Combined PDF",
     combine_documents_folder_path(@folder, format: :pdf),
     params: { document_ids: @folder.documents.pluck(:id) },
     method: :post,
-    class: "btn btn-primary" %> 
+    class: "btn btn-primary" %>
+</div>  
 
 
 
@@ -45,67 +47,81 @@
 </div>
  
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-  console.log('DOM fully loaded and parsed');
+document.addEventListener("turbo:load", function () {
+  console.log("Turbo page load detected");
 
-  const combineButton = document.getElementById('combine-documents-button');
-  const previewContainer = document.getElementById('preview');
-  const documentsList = document.getElementById('documents-list');
+  const combineButton = document.getElementById("combine-documents-button");
+  const previewContainer = document.getElementById("preview");
+  const documentsList = document.getElementById("documents-list");
 
-  const selectAllCheckbox = document.createElement('input');
-  selectAllCheckbox.type = 'checkbox';
-  selectAllCheckbox.id = 'select-all-checkbox';
+  if (!combineButton || !documentsList) {
+    console.error("Required elements not found!");
+    return;
+  }
 
-  const selectAllLabel = document.createElement('label');
-  selectAllLabel.textContent = 'Select All';
-  selectAllLabel.prepend(selectAllCheckbox);
+  // Add Select All checkbox if it doesn't exist
+  if (!document.getElementById("select-all-checkbox")) {
+    const selectAllCheckbox = document.createElement("input");
+    selectAllCheckbox.type = "checkbox";
+    selectAllCheckbox.id = "select-all-checkbox";
 
-  documentsList.parentNode.insertBefore(selectAllLabel, documentsList);
+    const selectAllLabel = document.createElement("label");
+    selectAllLabel.textContent = " Select All ";
+    selectAllLabel.prepend(selectAllCheckbox);
 
-  const documentCheckboxes = Array.from(documentsList.querySelectorAll('.list-group-item')).map(item => {
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = item.querySelector('.file-link').getAttribute('href').split('/').pop(); // Use document ID
-    checkbox.style.marginRight = '10px';
-    item.insertBefore(checkbox, item.firstChild);
+    documentsList.parentNode.insertBefore(selectAllLabel, documentsList);
+  }
+
+  const documentCheckboxes = Array.from(documentsList.querySelectorAll(".list-group-item")).map(item => {
+    let checkbox = item.querySelector("input[type='checkbox']");
+    
+    if (!checkbox) {
+      checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = item.querySelector(".file-link").getAttribute("href").split("/").pop();
+      checkbox.style.marginRight = "10px";
+      item.insertBefore(checkbox, item.firstChild);
+    }
+
     return checkbox;
   });
 
-  selectAllCheckbox.addEventListener('change', function () {
-    documentCheckboxes.forEach(checkbox => {
-      checkbox.checked = selectAllCheckbox.checked;
-    });
+  const selectAllCheckbox = document.getElementById("select-all-checkbox");
+  selectAllCheckbox.addEventListener("change", function () {
+    documentCheckboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
   });
 
-  combineButton.addEventListener('click', function () {
-    const selectedIds = documentCheckboxes
-      .filter(checkbox => checkbox.checked)
-      .map(checkbox => checkbox.value);
+  combineButton.addEventListener("click", function () {
+    const selectedIds = documentCheckboxes.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
 
     if (selectedIds.length > 0) {
-      fetch('<%= combine_documents_folder_path(@folder) %>', {
-        method: 'POST',
+      fetch("<%= combine_documents_folder_path(@folder) %>", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': document.querySelector("meta[name='csrf-token']").content
+          "Content-Type": "application/json",
+          "X-CSRF-Token": document.querySelector("meta[name='csrf-token']").content
         },
-        body: JSON.stringify({ document_ids: selectedIds, preview: "true" }) // Request preview
+        body: JSON.stringify({ document_ids: selectedIds, preview: "true" })
       })
-      .then(response => response.json()) // Expect a JSON response
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
       .then(data => {
         if (data.preview_text) {
-          // Display the plain text preview
-          previewContainer.innerHTML = `<pre>${data.preview_text}</pre>`;
+          previewContainer.innerHTML = data.preview_text; // Render HTML content directly
         } else {
-          previewContainer.innerHTML = '<p>No preview available.</p>';
+          previewContainer.innerHTML = "<p>No preview available.</p>";
         }
       })
       .catch(error => {
-        console.error('Error combining documents:', error);
-        alert('An error occurred while combining the documents.');
+        console.error("Error combining documents:", error);
+        alert("An error occurred while combining the documents.");
       });
     } else {
-      alert('Please select at least one document.');
+      alert("Please select at least one document.");
     }
   });
 });

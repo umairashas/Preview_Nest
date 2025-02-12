@@ -13,48 +13,39 @@ class FoldersController < ApplicationController
     @documents = @folder.documents
   end
 
- def combine_documents
-  document_ids = params[:document_ids] || []
-  pdf = CombinePDF.new
-  combined_text = ''
-
-  document_ids.each do |id|
-    begin
-      document = Document.find(id)
-      if document.pdf_document.attached?
-        case document.pdf_document.content_type
-        when 'text/plain'
-          text = document.pdf_document.download
-          pdf << text_to_pdf(text)
-          combined_text += text # Add text to combined text
-        when 'text/html'
-          html_content = document.pdf_document.download
-          plain_text = Nokogiri::HTML(html_content).at('body')&.text || ''
-          pdf << text_to_pdf(plain_text.strip)
-          combined_text += plain_text.strip # Add text to combined text
-        when 'application/pdf'
-          pdf << CombinePDF.parse(document.pdf_document.download)
+  def combine_documents
+    document_ids = params[:document_ids] || []
+    combined_html = ''
+  
+    document_ids.each do |id|
+      begin
+        document = Document.find(id)
+        if document.pdf_document.attached?
+          case document.pdf_document.content_type
+          when 'text/plain'
+            combined_html += "<pre>#{document.pdf_document.download}</pre>"
+          when 'text/html'
+            combined_html += document.pdf_document.download
+          else
+            Rails.logger.warn "Unsupported content type: #{document.pdf_document.content_type}"
+          end
         else
-          Rails.logger.warn "Unsupported content type: #{document.pdf_document.content_type}"
+          Rails.logger.warn "Document with ID #{id} has no attached file."
         end
-      else
-        Rails.logger.warn "Document with ID #{id} has no attached file."
+      rescue ActiveRecord::RecordNotFound => e
+        Rails.logger.error "Document with ID #{id} not found: #{e.message}"
+      rescue StandardError => e
+        Rails.logger.error "Error processing document with ID #{id}: #{e.message}"
       end
-    rescue ActiveRecord::RecordNotFound => e
-      Rails.logger.error "Document with ID #{id} not found: #{e.message}"
-    rescue StandardError => e
-      Rails.logger.error "Error processing document with ID #{id}: #{e.message}"
+    end
+  
+    if params[:preview] == "true"
+      render json: { preview_text: combined_html }
+    else
+      pdf = WickedPdf.new.pdf_from_string(combined_html, exe_path: "/home/ror/.rvm/gems/ruby-3.2.1/bin/wkhtmltopdf")
+      send_data pdf, filename: "combined_documents.pdf", type: "application/pdf", disposition: "attachment"
     end
   end
-
-  if params[:preview] == "true"
-    # Render inline preview as combined text
-    render json: { preview_text: combined_text }
-  else
-    # Download combined PDF
-    send_data pdf.to_pdf, filename: "combined_documents.pdf", type: "application/pdf", disposition: "attachment"
-  end
-end
 
 
   private
@@ -66,9 +57,39 @@ end
     redirect_to folders_path
   end
 
-  def text_to_pdf(text)
+  def text_to_pdf(content, content_type)
     pdf = Prawn::Document.new
-    pdf.text text
+  
+    case content_type
+    when 'text/html'
+      # Parse HTML content and render it in the PDF
+      doc = Nokogiri::HTML(content)
+      doc.css('body').children.each do |element|
+        case element.name
+        when 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+          pdf.text element.text, size: 16, style: :bold
+        when 'p'
+          pdf.text element.text, size: 12
+        when 'ul', 'ol'
+          element.css('li').each do |li|
+            pdf.text "• #{li.text}", size: 12
+          end
+        when 'a'
+          pdf.text "Link: #{element['href']}", size: 12, color: '0000FF'
+        when 'hr'
+          pdf.stroke_horizontal_rule
+        else
+          pdf.text element.text, size: 12
+        end
+        pdf.move_down 10
+      end
+    when 'text/plain'
+      # Render plain text as-is
+      pdf.text content, size: 12
+    else
+      pdf.text "Unsupported content type: #{content_type}", size: 12
+    end
+  
     CombinePDF.parse(pdf.render)
   end
 end

@@ -8,9 +8,6 @@ class DocumentsController < ApplicationController
     end
   end
 
-  
-
-
   def new
     @folder = Folder.find(params[:folder_id])
     @document = Document.new

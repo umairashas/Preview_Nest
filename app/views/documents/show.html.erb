@@ -3,15 +3,13 @@
   
   <% if content_type == "text/plain" %>
     <pre><%= @document.pdf_document.download %></pre>
-  <% elsif content_type == "text/html" %>
-    <iframe src="<%= url_for(@document.pdf_document) %>" 
-            width="100%" 
-            height="600px" 
-            style="border: none;"></iframe>
+  <% elsif content_type == "text/html" || content_type == "application/html" %>
+    <div class="html-preview">
+      <%= sanitize(@document.pdf_document.download) %>
+    </div>
   <% else %>
     <p>File type not supported for inline viewing.</p>
   <% end %>
 <% else %>
   <p>No file is attached to this document.</p>
 <% end %>
-
