@@ -1,24 +1,77 @@
-<h3>Upload a File to <%= @folder.name %></h3>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f4f4f4;
+  }
 
-<%= form_with(model: [@folder, @document], local: false) do |form| %>
-  <div class="field">
-    <%= form.label :name %>
-    <%= form.text_field :name %>
-  </div>
+  .container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
+    background: white;
+    border-radius: 5px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+  }
 
-  <div class="field">
-    <%= form.label :pdf_document %>
-    <%= form.file_field :pdf_document %>
-  </div>
+  h3 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
 
-  <div class="actions">
-    <%= form.submit 'Upload Document' %>
-    
-  </div>
+  .field {
+    margin-bottom: 15px;
+  }
 
+  label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
 
-<% end %>
+  input[type="text"],
+  input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
 
+  .actions {
+    text-align: center;
+    margin-top: 15px;
+  }
 
+  .actions input {
+    padding: 10px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
 
+  .actions input:hover {
+    background: #0056b3;
+  }
+</style>
 
+<div class="container">
+  <h3>Upload a File to <%= @folder.name %></h3>
+
+  <%= form_with(model: [@folder, @document], local: false) do |form| %>
+    <div class="field">
+      <%= form.label :name %>
+      <%= form.text_field :name %>
+    </div>
+
+    <div class="field">
+      <%= form.label :pdf_document %>
+      <%= form.file_field :pdf_document %>
+    </div>
+
+    <div class="actions">
+      <%= form.submit 'Upload Document' %>
+    </div>
+  <% end %>
+</div>

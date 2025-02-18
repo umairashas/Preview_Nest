@@ -1,15 +1,17 @@
-<% if @document.pdf_document.attached? %>
-  <% content_type = @document.pdf_document.content_type %>
-  
-  <% if content_type == "text/plain" %>
-    <pre><%= @document.pdf_document.download %></pre>
-  <% elsif content_type == "text/html" || content_type == "application/html" %>
-    <div class="html-preview">
-      <%= sanitize(@document.pdf_document.download) %>
-    </div>
+<% if @document %>
+  <% if @document.pdf_document.attached? %>
+    <% content_type = @document.pdf_document.content_type %>
+    
+    <% if content_type == "text/plain" %>
+      <pre><%= @document.pdf_document.download %></pre>
+    <% elsif content_type == "text/html" || content_type == "application/html" %>
+      <%= raw @document.pdf_document.download %>
+    <% else %>
+      <p>Unsupported file type: <%= content_type %></p>
+    <% end %>
   <% else %>
-    <p>File type not supported for inline viewing.</p>
+    <p>No file attached to this document.</p>
   <% end %>
 <% else %>
-  <p>No file is attached to this document.</p>
+  <p>Document not found.</p>
 <% end %>

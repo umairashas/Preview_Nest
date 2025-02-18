@@ -1,7 +1,3 @@
-require 'combine_pdf'
-require 'nokogiri'
-require 'prawn'
-
 class FoldersController < ApplicationController
   before_action :set_folder, only: [:show, :combine_documents]
 
@@ -13,83 +9,37 @@ class FoldersController < ApplicationController
     @documents = @folder.documents
   end
 
-  def combine_documents
-    document_ids = params[:document_ids] || []
-    combined_html = ''
   
-    document_ids.each do |id|
-      begin
-        document = Document.find(id)
-        if document.pdf_document.attached?
-          case document.pdf_document.content_type
-          when 'text/plain'
-            combined_html += "<pre>#{document.pdf_document.download}</pre>"
-          when 'text/html'
-            combined_html += document.pdf_document.download
-          else
-            Rails.logger.warn "Unsupported content type: #{document.pdf_document.content_type}"
-          end
-        else
-          Rails.logger.warn "Document with ID #{id} has no attached file."
-        end
-      rescue ActiveRecord::RecordNotFound => e
-        Rails.logger.error "Document with ID #{id} not found: #{e.message}"
-      rescue StandardError => e
-        Rails.logger.error "Error processing document with ID #{id}: #{e.message}"
-      end
-    end
-  
-    if params[:preview] == "true"
-      render json: { preview_text: combined_html }
-    else
-      pdf = WickedPdf.new.pdf_from_string(combined_html, exe_path: "/home/ror/.rvm/gems/ruby-3.2.1/bin/wkhtmltopdf")
-      send_data pdf, filename: "combined_documents.pdf", type: "application/pdf", disposition: "attachment"
-    end
-  end
+def combine_documents
+  combined_html = Array(params[:document_ids]).map { |id| process_document(id) }.compact.join
 
+  if params[:preview] == "true"
+    # Render inline preview as combined text (including HTML)
+    render json: { preview_text: combined_html }
+  else
+    # Download combined PDF
+    pdf = WickedPdf.new.pdf_from_string(combined_html, exe_path: "/home/ror/.rvm/gems/ruby-3.2.1/bin/wkhtmltopdf")
+    send_data pdf, filename: "combined_documents.pdf", type: "application/pdf", disposition: "attachment"
+  end
+end
 
   private
 
   def set_folder
-    @folder = Folder.find(params[:id])
-  rescue ActiveRecord::RecordNotFound
-    flash[:alert] = "Folder not found"
-    redirect_to folders_path
+    @folder = Folder.find_by(id: params[:id]) or redirect_to folders_path, alert: "Folder not found"
   end
 
-  def text_to_pdf(content, content_type)
-    pdf = Prawn::Document.new
+  def process_document(id)
+    document = Document.find_by(id: id)
+    return unless document&.pdf_document&.attached?
   
-    case content_type
-    when 'text/html'
-      # Parse HTML content and render it in the PDF
-      doc = Nokogiri::HTML(content)
-      doc.css('body').children.each do |element|
-        case element.name
-        when 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
-          pdf.text element.text, size: 16, style: :bold
-        when 'p'
-          pdf.text element.text, size: 12
-        when 'ul', 'ol'
-          element.css('li').each do |li|
-            pdf.text "• #{li.text}", size: 12
-          end
-        when 'a'
-          pdf.text "Link: #{element['href']}", size: 12, color: '0000FF'
-        when 'hr'
-          pdf.stroke_horizontal_rule
-        else
-          pdf.text element.text, size: 12
-        end
-        pdf.move_down 10
-      end
+    case document.pdf_document.content_type
     when 'text/plain'
-      # Render plain text as-is
-      pdf.text content, size: 12
+      "<pre>#{document.pdf_document.download}</pre>" # Wrap .txt content in <pre> tags
+    when 'text/html'
+      document.pdf_document.download # Keep .html content as-is
     else
-      pdf.text "Unsupported content type: #{content_type}", size: 12
+      nil
     end
-  
-    CombinePDF.parse(pdf.render)
   end
 end
